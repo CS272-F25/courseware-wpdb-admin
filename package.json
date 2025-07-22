@@ -1,0 +1,12 @@
+{
+  "name": "courseware-wpdb-admin",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "ctnelson2",
+  "license": "MIT",
+  "description": ""
+}

@@ -1,0 +1,16 @@
+services:
+  cs272_wp_shared_db:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: {ROOT_PASSWORD}
+      MYSQL_DATABASE: cs272
+    ports:
+      - "23306:3306"
+    volumes:
+      - cs272_wp_shared_db:/var/lib/mysql
+    restart: always
+    healthcheck:
+      test: ["CMD", "mysqladmin", "-uroot", "-p{ROOT_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 60s
+      retries: 5

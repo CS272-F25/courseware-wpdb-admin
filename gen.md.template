@@ -1,0 +1,42 @@
+# CS272 WordPress Populater
+This file has been automatically generated *with sensitive information*. **Please distribute cautiously.**
+
+## Getting Started
+
+First, start a software stack with the following `docker-compose.yml`...
+
+```
+{DOCKER_COMPOSE_INITIAL}
+```
+
+This will start up a MySQL Database for which we still need to populate.
+
+## Populate Database
+
+Next, `docker exec` into the MySQL Database container. Then, in the exec instance, run the following command...
+
+```
+{MYSQL_EXEC}
+```
+
+This will give you root access to the database. To create all of the student databases, run the following commands. 
+
+**Note:** This will take some time.
+
+```
+{MYSQL_STUDENT_DB_CREATION}
+```
+
+Exit the `docker exec` instance.
+
+## Start Containers
+
+Replace the initial `docker-compose.yml` with the one provided below. This will create a container for each student. 
+
+**Note:** This will take some time. You may need to run incremental batches of these to avoid any timeouts.
+
+```
+{DOCKER_COMPOSE_FINAL}
+```
+
+Great! You are all set.
