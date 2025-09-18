@@ -22,7 +22,16 @@ const STUDENTS_PROCESSED = STUDENTS.map(stud => {
     const username = email.split("@")[0];
     const db_name = `cs272_wp_${username}`
     const password = crypto.createHmac("SHA256", SEED).update(username).digest("hex").substring(0, 16);
-    return { email, username, db_name, password }
+    const working_dir = `/var/www/html/${SEMESTER}/${username.toLowerCase()}-site`
+    const volume_name = `${db_name}_content:`;
+    return { 
+      email, 
+      username, 
+      db_name, 
+      password,
+      volume_name,
+      working_dir
+    }
 })
 
 let GEN = TEMPL;
@@ -37,7 +46,7 @@ CREATE USER '${stud.username}'@'%' IDENTIFIED BY '${stud.password}';
 GRANT ALL PRIVILEGES ON \`${stud.db_name}\`.* TO '${stud.username}'@'%';
 `.trim()).join("\n\n"));
 
-GEN = GEN.replaceAll("{DOCKER_COMPOSE_FINAL}", COMPOSE_HEADER + "\n" + STUDENTS_PROCESSED.map((stud, i) => `
+const docker_compose_student_stacks = STUDENTS_PROCESSED.map((stud, i) => `
 ${stud.db_name}:
   image: ${WP_IMAGE_NAME}
   restart: always
@@ -48,13 +57,28 @@ ${stud.db_name}:
     WORDPRESS_DB_USER: ${stud.username}
     WORDPRESS_DB_PASSWORD: ${stud.password}
     WORDPRESS_DB_NAME: ${stud.db_name}
-  working_dir: /var/www/html/${SEMESTER}/${stud.username.toLowerCase()}-site
+  working_dir: ${stud.working_dir}
+  volumes:
+      - ${stud.volume_name}${stud.working_dir}/wp-content
   labels:
     - "traefik.enable=true"
     - "traefik.http.routers.${stud.username}_wp.rule=Host(\`cs272-wordpress.cs.wisc.edu\`)&&PathPrefix(\`/${SEMESTER}/${stud.username.toLowerCase()}-site\`)"
   depends_on:
     cs272_wp_shared_db:
       condition: service_healthy    
-`.trim().split(/\r?\n/g).map(t => `  ${t}`).join("\n")).join("\n") + "\n" + COMPOSE_FOOTER);
+`.trim().split(/\r?\n/g).map(t => `  ${t}`).join("\n")).join("\n")
+
+const docker_compose_volumes = `
+volumes:
+  cs272_wp_shared_db:
+` + STUDENTS_PROCESSED.map(({ volume_name }) => `  ${volume_name}`).join("\n")
+
+GEN = GEN.replaceAll(
+  "{DOCKER_COMPOSE_FINAL}", 
+  COMPOSE_HEADER + "\n" + 
+  docker_compose_student_stacks + "\n" + 
+  docker_compose_volumes + "\n" + 
+  COMPOSE_FOOTER
+);
 
 fs.writeFileSync("gen.secret.md", GEN)

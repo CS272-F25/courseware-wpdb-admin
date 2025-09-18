@@ -1,5 +1,3 @@
-volumes:
-  cs272_wp_shared_db:
 networks:
   default:
     external:
