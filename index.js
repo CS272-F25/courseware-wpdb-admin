@@ -59,7 +59,7 @@ ${stud.db_name}:
     WORDPRESS_DB_NAME: ${stud.db_name}
   working_dir: ${stud.working_dir}
   volumes:
-      - ${stud.volume_name}${stud.working_dir}/wp-content
+    - ${stud.volume_name}${stud.working_dir}/wp-content
   labels:
     - "traefik.enable=true"
     - "traefik.http.routers.${stud.username}_wp.rule=Host(\`cs272-wordpress.cs.wisc.edu\`)&&PathPrefix(\`/${SEMESTER}/${stud.username.toLowerCase()}-site\`)"
