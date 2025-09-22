@@ -6,7 +6,16 @@ const SEED = fs.readFileSync('seed.secret').toString().trim();
 
 const SQL_BY_GROUP = new Map();
 
-STUDENTS.forEach(student => {
+function slugify(input) {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+}
+
+const mailMergeData = STUDENTS.map(student => {
   const netid = student.netId;
   const password = crypto.createHmac("SHA256", SEED).update(netid).digest("hex").substring(0, 16);
 
@@ -22,7 +31,7 @@ INSERT INTO wp_users (
     user_registered
 ) VALUES (
     '${netid}', -- user_login
-    '${student.first.toLowerCase()}-${student.last.toLowerCase()}', -- user_nicename, used as a slug in URLs
+    '${slugify(student.first)}-${slugify(student.last)}', -- user_nicename, used as a slug in URLs
     '${student.email}', -- user_email
     '${student.first} ${student.last}', -- display_name
     MD5('${password}'), -- user_pass (WordPress will rehash on login)
@@ -95,6 +104,11 @@ INSERT INTO wp_usermeta (
 
 `
   SQL_BY_GROUP.set(student.group, [...existing_group, creation_sql])
+  return {
+    ...student,
+    password,
+    url: `https://cs272-wordpress.cs.wisc.edu/f25/p${student.group}-site/wp-admin/`
+  }
 })
 
 for (const [group, sql_array] of SQL_BY_GROUP.entries()) {
@@ -107,5 +121,7 @@ for (const [group, sql_array] of SQL_BY_GROUP.entries()) {
     //   before manually entering "COMMIT;"
   ].join("\n");
   
-  fs.writeFileSync(`project_group_transactions/p${group}.sql`, output);
+  fs.writeFileSync(`project_groups/p${group}.sql`, output);
 }
+
+fs.writeFileSync(`project_groups/mail_merge_data.json`, JSON.stringify(mailMergeData, null, 2))
