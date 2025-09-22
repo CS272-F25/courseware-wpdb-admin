@@ -17,7 +17,11 @@ function slugify(input) {
 
 const mailMergeData = STUDENTS.map(student => {
   const netid = student.netId;
-  const password = crypto.createHmac("SHA256", SEED).update(netid).digest("hex").substring(0, 16);
+  const password = crypto
+    .createHmac("SHA256", SEED)
+    .update(netid)
+    .digest("hex")
+    .substring(0, 16);
 
   const existing_group = SQL_BY_GROUP.get(student.group) ?? [];
 
@@ -124,4 +128,9 @@ for (const [group, sql_array] of SQL_BY_GROUP.entries()) {
   fs.writeFileSync(`project_groups/p${group}.sql`, output);
 }
 
-fs.writeFileSync(`project_groups/mail_merge_data.json`, JSON.stringify(mailMergeData, null, 2))
+// note: json-to-csv utility in courseware-canvas-tools repo can
+//   turn this JSON into a spreadsheet easily
+fs.writeFileSync(
+  `project_groups/mail_merge_data.json`,
+  JSON.stringify(mailMergeData, null, 2)
+)
