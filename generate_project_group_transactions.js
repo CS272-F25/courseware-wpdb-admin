@@ -14,6 +14,7 @@ STUDENTS.forEach(student => {
 
   const existing_group = GROUP_TRANSACTIONS.get(student.group) ?? [];
 
+  // thanks ChatGPT for the SQL
   const transaction = `
 START TRANSACTION;
 
@@ -43,7 +44,7 @@ INSERT INTO wp_users (
 -- 2) Capture the ID of the user we just created
 SET @new_user_id = LAST_INSERT_ID();
 
--- 3) Recommend password change (default_password_nag)
+-- 3) Recommend password change
 INSERT INTO wp_usermeta (
     user_id,
     meta_key,
@@ -54,7 +55,7 @@ INSERT INTO wp_usermeta (
     '1'
 );
 
--- 4) Assign user role (example: Administrator)
+-- 4) Assign user role
 INSERT INTO wp_usermeta (
     user_id,
     meta_key,
@@ -63,17 +64,6 @@ INSERT INTO wp_usermeta (
     @new_user_id,
     'wp_capabilities',
     'a:1:{s:13:"administrator";b:1;}'
-);
-
--- 5) (Optional) Set user level (required for older WordPress versions)
-INSERT INTO wp_usermeta (
-    user_id,
-    meta_key,
-    meta_value
-) VALUES (
-    @new_user_id,
-    'wp_user_level',
-    '10'
 );
 
 COMMIT;
