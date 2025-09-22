@@ -4,8 +4,6 @@ import fs from 'fs';
 const STUDENTS = JSON.parse(fs.readFileSync('enriched_CMS_Project_Groups.secret.json'));
 const SEED = fs.readFileSync('seed.secret').toString().trim();
 
-const SQL_BY_GROUP = new Map();
-
 function slugify(input) {
   return input
     .toLowerCase()
@@ -15,122 +13,42 @@ function slugify(input) {
     .replace(/-+/g, '-');
 }
 
-const mailMergeData = STUDENTS.map(student => {
-  const netid = student.netId;
-  const password = crypto
+const student_sql = STUDENTS.map(student => {
+  // modifying the array elements in-place as a side-effect
+  student.password = crypto
     .createHmac("SHA256", SEED)
-    .update(netid)
+    .update(student.netId)
     .digest("hex")
     .substring(0, 16);
-
-  const existing_group = SQL_BY_GROUP.get(student.group) ?? [];
-
-  const creation_sql = `
-INSERT INTO wp_users (
-    user_login,
-    user_nicename,
-    user_email,
-    display_name,
-    user_pass,
-    user_registered
-) VALUES (
-    '${netid}', -- user_login
-    '${slugify(student.first)}-${slugify(student.last)}', -- user_nicename, used as a slug in URLs
-    '${student.email}', -- user_email
-    '${student.first} ${student.last}', -- display_name
-    MD5('${password}'), -- user_pass (WordPress will rehash on login)
-    NOW() -- user_registered
-);
-
-SET @new_user_id = LAST_INSERT_ID();
-
-INSERT INTO wp_usermeta (
-    user_id,
-    meta_key,
-    meta_value
-) VALUES (
-    @new_user_id,
-    'nickname',
-    '${student.first}'
-);
-
-INSERT INTO wp_usermeta (
-    user_id,
-    meta_key,
-    meta_value
-) VALUES (
-    @new_user_id,
-    'first_name',
-    '${student.first}'
-);
-
-INSERT INTO wp_usermeta (
-    user_id,
-    meta_key,
-    meta_value
-) VALUES (
-    @new_user_id,
-    'last_name',
-    '${student.last}'
-);
-
-INSERT INTO wp_usermeta (
-    user_id,
-    meta_key,
-    meta_value
-) VALUES (
-    @new_user_id,
-    'wp_capabilities',
-    'a:1:{s:13:"administrator";b:1;}'
-);
-
--- Recommend password change
-INSERT INTO wp_usermeta (
-    user_id,
-    meta_key,
-    meta_value
-) VALUES (
-    @new_user_id,
-    'default_password_nag',
-    '1'
-);
-
--- Enable block editor by default
-INSERT INTO wp_usermeta (
-    user_id,
-    meta_key,
-    meta_value
-) VALUES (
-    @new_user_id,
-    'rich_editing',
-    'true'
-);
-
-`
-  SQL_BY_GROUP.set(student.group, [...existing_group, creation_sql])
+  student.url = `https://cs272-wordpress.cs.wisc.edu/f25/p${student.group}-site/wp-admin/`
+  
   return {
-    ...student,
-    password,
-    url: `https://cs272-wordpress.cs.wisc.edu/f25/p${student.group}-site/wp-admin/`
+    group: student.group,
+    netid: student.netId,
+    sql: `USE cs272_wp_P${student.group};
+START TRANSACTION;
+INSERT INTO wp_users (user_login,user_nicename,user_email,display_name,user_pass,user_registered) VALUES ('${student.netId}','${slugify(student.first)}-${slugify(student.last)}','${student.email}','${student.first} ${student.last}',MD5('${student.password}'),NOW());
+SET @new_user_id = LAST_INSERT_ID();
+INSERT INTO wp_usermeta (user_id,meta_key,meta_value) VALUES (@new_user_id,'nickname','${student.first}');
+INSERT INTO wp_usermeta (user_id,meta_key,meta_value) VALUES (@new_user_id,'first_name','${student.first}');
+INSERT INTO wp_usermeta (user_id,meta_key,meta_value) VALUES (@new_user_id,'last_name','${student.last}');
+INSERT INTO wp_usermeta (user_id,meta_key,meta_value) VALUES (@new_user_id,'wp_capabilities','a:1:{s:13:"administrator";b:1;}');
+INSERT INTO wp_usermeta (user_id,meta_key,meta_value) VALUES (@new_user_id,'default_password_nag','1');
+INSERT INTO wp_usermeta (user_id,meta_key,meta_value) VALUES (@new_user_id,'rich_editing','true');
+`
   }
+// note we specifically DON'T put "COMMIT;" in here:
+  //   when we copy and paste this in, manually confirm there are no errors
+  //   before manually entering "COMMIT;"
 })
 
-for (const [group, sql_array] of SQL_BY_GROUP.entries()) {
-  const output = [
-    `USE cs272_wp_P${group};\n`, 
-    `START TRANSACTION;\n`, 
-    ...sql_array,
-    // note we specifically DON'T put "COMMIT;" in here:
-    //   when we copy and paste this in, manually confirm there are no errors
-    //   before manually entering "COMMIT;"
-  ].join("\n");
-  
-  fs.writeFileSync(`project_groups/p${group}.sql`, output);
+for (const { group, netid, sql } of student_sql) {
+  fs.writeFileSync(`project_groups/p${group}.${netid}.sql`, sql);
 }
 
 // note: json-to-csv utility in courseware-canvas-tools repo can
 //   turn this JSON into a spreadsheet easily
 fs.writeFileSync(
   `project_groups/mail_merge_data.json`,
-  JSON.stringify(mailMergeData, null, 2)
+  JSON.stringify(STUDENTS, null, 2)
 )
