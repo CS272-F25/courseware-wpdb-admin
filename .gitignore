@@ -1,6 +1,9 @@
 **/*.secret
 **/*.secret*
 
+# Operating System junk
+**/.DS_Store
+
 # Logs
 logs
 *.log
